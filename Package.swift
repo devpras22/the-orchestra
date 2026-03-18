@@ -22,7 +22,8 @@ let package = Package(
                 .copy("Resources/Fonts"),
                 .copy("Resources/Images"),
                 .copy("Resources/Defaults"),
-                .copy("Resources/web")
+                .copy("Resources/web"),
+                .copy("bin")
             ]
         )
     ]

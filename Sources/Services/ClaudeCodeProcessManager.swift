@@ -31,18 +31,49 @@ final class ClaudeCodeProcessManager {
     }
 
     /// Get the path to tmux executable
+    /// Checks bundled version first, then falls back to system locations
     private func getTmuxPath() -> String? {
         if let cached = tmuxPath { return cached }
 
-        // Check common locations for tmux
-        let paths = ["/opt/homebrew/bin/tmux", "/usr/local/bin/tmux", "/usr/bin/tmux"]
-        for path in paths {
+        // First, check for bundled tmux in app resources
+        var bundledPaths: [String] = []
+
+        // SPM bundle path (when running via swift run)
+        let cwd = FileManager.default.currentDirectoryPath
+        bundledPaths.append("\(cwd)/Sources/bin/tmux")
+        bundledPaths.append("\(cwd)/.build/arm64-apple-macosx/debug/the-orchestra_the-orchestra.bundle/bin/tmux")
+
+        // Check Bundle.main (when running as built app)
+        if let resourcePath = Bundle.main.resourcePath {
+            bundledPaths.append("\(resourcePath)/bin/tmux")
+        }
+
+        // Check Bundle.module (SPM resources)
+        #if SWIFT_PACKAGE
+        if let moduleResourcePath = Bundle.module.resourcePath {
+            bundledPaths.append("\(moduleResourcePath)/bin/tmux")
+        }
+        #endif
+
+        // Check bundled locations first
+        for path in bundledPaths {
             if FileManager.default.isExecutableFile(atPath: path) {
                 tmuxPath = path
-                print("[ProcessManager] Found tmux at: \(path)")
+                print("[ProcessManager] Found bundled tmux at: \(path)")
                 return path
             }
         }
+
+        // Fall back to system locations
+        let systemPaths = ["/opt/homebrew/bin/tmux", "/usr/local/bin/tmux", "/usr/bin/tmux"]
+        for path in systemPaths {
+            if FileManager.default.isExecutableFile(atPath: path) {
+                tmuxPath = path
+                print("[ProcessManager] Found system tmux at: \(path)")
+                return path
+            }
+        }
+
         print("[ProcessManager] tmux not found in any location")
         return nil
     }
