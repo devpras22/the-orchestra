@@ -98,6 +98,29 @@ theOrchestra/
 
 ---
 
+## Agent Personalities
+
+Each agent has a personality that gets injected into Claude Code. When you send a message to an agent, The Orchestra automatically creates a `CLAUDE.md` file that tells Claude who it is.
+
+**Where personalities are stored:**
+```
+~/Library/Application Support/The Orchestra/agents/{companyId}/{agentIndex}/CLAUDE.md
+```
+
+For example, Musician Nova in "The Orchestra" company:
+```
+~/Library/Application Support/The Orchestra/agents/the-orchestra/1/CLAUDE.md
+```
+
+**To customize an agent's personality:**
+1. Navigate to the agent's directory (see above)
+2. Edit the `CLAUDE.md` file
+3. Restart the app or start a new chat with that agent
+
+The personality includes: role, department, mission, and personality traits.
+
+---
+
 ## Roadmap
 
 - **Inter-Agent Communication** — Agents can walk to each other and talk, collaborate on tasks together

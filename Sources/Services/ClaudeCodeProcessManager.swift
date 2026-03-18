@@ -1,6 +1,17 @@
 import Foundation
 import AppKit
 
+/// Agent personality data for CLAUDE.md generation
+struct AgentPersonality {
+    let agentIndex: Int
+    let role: String
+    let department: String
+    let mission: String
+    let personality: String
+    let companyName: String
+    let companyId: String
+}
+
 /// Manages spawning and communicating with Claude Code processes
 /// Uses tmux to allow sending messages without window focus
 /// Supports multiple agents, each with their own tmux session
@@ -12,6 +23,9 @@ final class ClaudeCodeProcessManager {
     private var runningSessions: Set<Int> = []
     private var terminalWindowIds: [Int: Int] = [:]  // agentIndex -> windowId
 
+    /// Track agent personalities for directory creation
+    private var agentPersonalities: [Int: AgentPersonality] = [:]
+
     /// Base tmux session name
     private let tmuxSessionBase = "orchestra"
 
@@ -19,6 +33,50 @@ final class ClaudeCodeProcessManager {
     private var tmuxPath: String?
 
     private init() {}
+
+    /// Get the base directory for Orchestra app data
+    private func getOrchestraBaseDirectory() -> URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return appSupport.appendingPathComponent("The Orchestra")
+    }
+
+    /// Get the agent's working directory
+    private func getAgentDirectory(companyId: String, agentIndex: Int) -> URL {
+        return getOrchestraBaseDirectory()
+            .appendingPathComponent("agents")
+            .appendingPathComponent(companyId)
+            .appendingPathComponent(String(agentIndex))
+    }
+
+    /// Create CLAUDE.md file with agent personality
+    private func createAgentCLAUDEmd(personality: AgentPersonality) throws -> URL {
+        let dir = getAgentDirectory(companyId: personality.companyId, agentIndex: personality.agentIndex)
+
+        // Create directory structure
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        // Generate CLAUDE.md content
+        let content = """
+        # \(personality.role)
+
+        You are **\(personality.role)** at **\(personality.companyName)**.
+
+        - **Department:** \(personality.department)
+        - **Mission:** \(personality.mission)
+        - **Personality:** \(personality.personality)
+
+        You are part of a team of AI assistants helping a young user learn to direct AI agents.
+        Stay in character and be helpful, friendly, and encouraging.
+
+        When working on tasks, remember your role and mission. Communicate in a way that fits your personality.
+        """
+
+        let fileURL = dir.appendingPathComponent("CLAUDE.md")
+        try content.write(to: fileURL, atomically: true, encoding: .utf8)
+
+        print("[ProcessManager] Created CLAUDE.md at: \(fileURL.path)")
+        return dir
+    }
 
     /// Get tmux session name for a specific agent
     private func sessionName(for agentIndex: Int) -> String {
@@ -82,7 +140,12 @@ final class ClaudeCodeProcessManager {
     /// Terminal window is hidden immediately after opening
     /// Runs on background queue to avoid blocking UI
     @discardableResult
-    func spawn(agentIndex: Int) -> Bool {
+    func spawn(agentIndex: Int, personality: AgentPersonality? = nil) -> Bool {
+        // Store personality for this agent
+        if let personality = personality {
+            agentPersonalities[agentIndex] = personality
+        }
+
         // Check if already running for this agent
         if runningSessions.contains(agentIndex) {
             print("[ProcessManager] Terminal for agent \(agentIndex) already open")
@@ -97,6 +160,23 @@ final class ClaudeCodeProcessManager {
 
         let session = sessionName(for: agentIndex)
 
+        // Determine working directory
+        let workingDir: String
+        if let personality = agentPersonalities[agentIndex] {
+            do {
+                // Create agent directory and CLAUDE.md
+                let agentDir = try createAgentCLAUDEmd(personality: personality)
+                workingDir = agentDir.path
+            } catch {
+                print("[ProcessManager] Failed to create agent directory: \(error)")
+                // Fall back to default directory
+                workingDir = FileManager.default.currentDirectoryPath
+            }
+        } else {
+            // No personality, use current directory
+            workingDir = FileManager.default.currentDirectoryPath
+        }
+
         // Kill any existing tmux session for this agent
         _ = runCommand(tmux, args: ["kill-session", "-t", session])
 
@@ -104,7 +184,7 @@ final class ClaudeCodeProcessManager {
         // Use full path to bundled tmux binary
         let script = """
         tell application "Terminal"
-            set newTab to do script "cd /Users/Pras/Documents/ClaudeCode && \(tmux) new-session -s \(session) claude"
+            set newTab to do script "cd '\(workingDir)' && \(tmux) new-session -s \(session) claude"
             set windowID to id of window 1
         end tell
         tell application "System Events"
@@ -140,7 +220,7 @@ final class ClaudeCodeProcessManager {
             // Wait for tmux session to start (on background queue, doesn't block UI)
             Thread.sleep(forTimeInterval: 2.0)
 
-            print("[ProcessManager] Spawned hidden tmux session '\(session)' for agent \(agentIndex)")
+            print("[ProcessManager] Spawned hidden tmux session '\(session)' for agent \(agentIndex) in \(workingDir)")
         }
 
         return true
@@ -150,6 +230,12 @@ final class ClaudeCodeProcessManager {
     @discardableResult
     func spawn() -> Bool {
         return spawn(agentIndex: 1)
+    }
+
+    /// Set personality for an agent (call before spawning)
+    func setPersonality(_ personality: AgentPersonality) {
+        agentPersonalities[personality.agentIndex] = personality
+        print("[ProcessManager] Set personality for agent \(personality.agentIndex): \(personality.role)")
     }
 
     /// Send a message to a specific agent's Claude Code via tmux send-keys
@@ -196,6 +282,21 @@ final class ClaudeCodeProcessManager {
 
         let session = sessionName(for: agentIndex)
 
+        // Determine working directory
+        let workingDir: String
+        if let personality = agentPersonalities[agentIndex] {
+            do {
+                // Create agent directory and CLAUDE.md
+                let agentDir = try createAgentCLAUDEmd(personality: personality)
+                workingDir = agentDir.path
+            } catch {
+                print("[ProcessManager] Failed to create agent directory: \(error)")
+                workingDir = FileManager.default.currentDirectoryPath
+            }
+        } else {
+            workingDir = FileManager.default.currentDirectoryPath
+        }
+
         // Kill any existing tmux session for this agent
         _ = runCommand(tmux, args: ["kill-session", "-t", session])
 
@@ -203,7 +304,7 @@ final class ClaudeCodeProcessManager {
         // Use full path to bundled tmux binary
         let script = """
         tell application "Terminal"
-            set newTab to do script "cd /Users/Pras/Documents/ClaudeCode && \(tmux) new-session -s \(session) claude"
+            set newTab to do script "cd '\(workingDir)' && \(tmux) new-session -s \(session) claude"
             set windowID to id of window 1
         end tell
         tell application "System Events"
@@ -230,7 +331,7 @@ final class ClaudeCodeProcessManager {
         self.terminalWindowIds[agentIndex] = Int(windowId)
         self.runningSessions.insert(agentIndex)
 
-        print("[ProcessManager] Spawned hidden tmux session '\(session)' for agent \(agentIndex)")
+        print("[ProcessManager] Spawned hidden tmux session '\(session)' for agent \(agentIndex) in \(workingDir)")
         return true
     }
 

@@ -136,6 +136,27 @@ struct OrchestraWebView: NSViewRepresentable {
                 processManager.stopAll()
                 // Reset session tracking
                 resetAllSessions()
+            case "setAgentPersonality":
+                // Set personality for an agent before spawning
+                if let agentIndex = body["agentIndex"] as? Int,
+                   let role = body["role"] as? String,
+                   let department = body["department"] as? String,
+                   let mission = body["mission"] as? String,
+                   let personality = body["personality"] as? String,
+                   let companyName = body["companyName"] as? String,
+                   let companyId = body["companyId"] as? String {
+                    let agentPersonality = AgentPersonality(
+                        agentIndex: agentIndex,
+                        role: role,
+                        department: department,
+                        mission: mission,
+                        personality: personality,
+                        companyName: companyName,
+                        companyId: companyId
+                    )
+                    processManager.setPersonality(agentPersonality)
+                    print("[WebView] Set personality for agent \(agentIndex): \(role)")
+                }
             default:
                 break
             }
@@ -156,7 +177,33 @@ struct OrchestraWebView: NSViewRepresentable {
                     console.log('[Orchestra Bridge] Sent ready');
                 }
 
-                // Hook chat input to capture user messages WITH agent index
+                // Helper function to get agent personality from store
+                function getAgentPersonality(agentIndex) {
+                    if (window.useAgencyStore) {
+                        const state = window.useAgencyStore.getState();
+                        const agentSetId = state.selectedAgentSetId;
+                        if (window.AGENT_SETS) {
+                            const agentSet = window.AGENT_SETS.find(s => s.id === agentSetId);
+                            if (agentSet) {
+                                const agent = agentSet.agents.find(a => a.index === agentIndex);
+                                if (agent) {
+                                    return {
+                                        agentIndex: agent.index,
+                                        role: agent.role,
+                                        department: agent.department,
+                                        mission: agent.mission,
+                                        personality: agent.personality,
+                                        companyName: agentSet.companyName,
+                                        companyId: agentSetId
+                                    };
+                                }
+                            }
+                        }
+                    }
+                    return null;
+                }
+
+                // Hook chat input to capture user messages WITH agent index and personality
                 document.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         const textarea = document.querySelector('textarea[placeholder*="Message"]');
@@ -171,6 +218,16 @@ struct OrchestraWebView: NSViewRepresentable {
                                 }
                             } else {
                                 console.log('[Orchestra Bridge] orchestraUIStore not found on window');
+                            }
+
+                            // Get agent personality and send to native
+                            const personality = getAgentPersonality(agentIndex);
+                            if (personality && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.orchestra) {
+                                window.webkit.messageHandlers.orchestra.postMessage({
+                                    type: 'setAgentPersonality',
+                                    ...personality
+                                });
+                                console.log('[Orchestra Bridge] Sent personality for agent', agentIndex);
                             }
 
                             console.log('[Orchestra Bridge] Sending message to agent', agentIndex, ':', textarea.value);
@@ -200,6 +257,27 @@ struct OrchestraWebView: NSViewRepresentable {
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
             print("[WebView] Navigation failed: \(error)")
+        }
+
+        // Handle link clicks - open external links in Safari
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard let url = navigationAction.request.url else {
+                decisionHandler(.allow)
+                return
+            }
+
+            // Check if it's an external link (http/https) and not a file URL
+            if url.scheme == "http" || url.scheme == "https" {
+                // Check if it's a navigation (link click) vs a resource load
+                if navigationAction.navigationType == .linkActivated {
+                    // Open in default browser (Safari)
+                    NSWorkspace.shared.open(url)
+                    decisionHandler(.cancel)
+                    return
+                }
+            }
+
+            decisionHandler(.allow)
         }
 
         func syncAgents(webView: WKWebView, appStore: AppStore) {
