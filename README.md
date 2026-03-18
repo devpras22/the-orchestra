@@ -10,7 +10,9 @@ A kid-friendly AI assistant app with animated agents.
 ## Build & Run
 
 ```bash
-cd /Users/Pras/Documents/ClaudeCode/theOrchestra
+# Clone the repo
+git clone https://github.com/devpras22/the-orchestra.git
+cd the-orchestra
 swift build
 swift run the-orchestra
 ```
@@ -42,6 +44,12 @@ theOrchestra/
 ├── _delegation-reference/  # React app
 └── Package.swift
 ```
+
+## Acknowledgments
+
+This project builds upon the amazing work of:
+- **[The Delegation](https://github.com/arturitu/the-delegation)** - The 3D multi-agent React interface with animated avatars
+- **[MASKO](https://github.com/RousselPaul/masko-code)** - The backend for parsing Claude Code terminal output into structured events
 
 ## License
 
