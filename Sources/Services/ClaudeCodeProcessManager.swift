@@ -101,9 +101,10 @@ final class ClaudeCodeProcessManager {
         _ = runCommand(tmux, args: ["kill-session", "-t", session])
 
         // AppleScript to open Terminal with tmux running claude, then hide it
+        // Use full path to bundled tmux binary
         let script = """
         tell application "Terminal"
-            set newTab to do script "cd /Users/Pras/Documents/ClaudeCode && tmux new-session -s \(session) claude"
+            set newTab to do script "cd /Users/Pras/Documents/ClaudeCode && \(tmux) new-session -s \(session) claude"
             set windowID to id of window 1
         end tell
         tell application "System Events"
@@ -199,9 +200,10 @@ final class ClaudeCodeProcessManager {
         _ = runCommand(tmux, args: ["kill-session", "-t", session])
 
         // AppleScript to open Terminal with tmux running claude, then hide it
+        // Use full path to bundled tmux binary
         let script = """
         tell application "Terminal"
-            set newTab to do script "cd /Users/Pras/Documents/ClaudeCode && tmux new-session -s \(session) claude"
+            set newTab to do script "cd /Users/Pras/Documents/ClaudeCode && \(tmux) new-session -s \(session) claude"
             set windowID to id of window 1
         end tell
         tell application "System Events"
