@@ -28,6 +28,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.activate(ignoringOtherApps: true)
+
+        // Set the app icon
+        #if SWIFT_PACKAGE
+        if let iconURL = Bundle.module.url(forResource: "AppIcon", withExtension: "png", subdirectory: "Icons"),
+           let iconImage = NSImage(contentsOf: iconURL) {
+            NSApplication.shared.applicationIconImage = iconImage
+        }
+        #else
+        if let icon = NSImage(named: "AppIcon") {
+            NSApplication.shared.applicationIconImage = icon
+        }
+        #endif
+
         // Terminal will be spawned lazily when user interacts with an agent
     }
 

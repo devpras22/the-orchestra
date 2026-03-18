@@ -19,6 +19,8 @@ let package = Package(
             ],
             path: "Sources",
             resources: [
+                .process("Resources/Assets.xcassets"),
+                .copy("Resources/Icons"),
                 .copy("Resources/web"),
                 .copy("bin")
             ]
