@@ -1,0 +1,23 @@
+# Build artifacts
+.build/
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Reference projects (not needed for build)
+_delegation-reference/
+_masko-reference/
+
+# Local documentation
+IMPLEMENTATION_PLAN.md
+LESSONS_AND_PLAN.md
+LESSONS.md
+orchestra_kid_ai_visualizer.md
+PROJECT_KNOWLEDGE.md
+ROADMAP.md
+SESSION_CONTEXT.md
+
+# Archive
+archive/
