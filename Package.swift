@@ -19,9 +19,6 @@ let package = Package(
             ],
             path: "Sources",
             resources: [
-                .copy("Resources/Fonts"),
-                .copy("Resources/Images"),
-                .copy("Resources/Defaults"),
                 .copy("Resources/web"),
                 .copy("bin")
             ]

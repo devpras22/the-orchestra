@@ -257,7 +257,7 @@ final class ClaudeCodeProcessManager {
                 guard let self = self else { return }
 
                 // Spawn the terminal (this already runs async internally, but we need to wait)
-                self.spawnSync(agentIndex: agentIndex)
+                _ = self.spawnSync(agentIndex: agentIndex)
 
                 // Wait for tmux to be ready
                 Thread.sleep(forTimeInterval: 2.0)

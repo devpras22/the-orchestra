@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 @Observable
-final class AppStore {
+final class AppStore: @unchecked Sendable {
     let eventBus = MaskoEventBus()
     let claudeCodeAdapter = ClaudeCodeAdapter()
     let eventStore = EventStore()
