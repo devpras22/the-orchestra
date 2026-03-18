@@ -40,72 +40,141 @@ struct OrchestraStageView: View {
     }
 }
 
-// MARK: - Permission Popup
+// MARK: - Permission Popup (Kid-Friendly White Theme)
 
 struct PermissionPopupView: View {
     let permission: PendingPermission
     @Environment(AppStore.self) var appStore
 
+    // Kid-friendly colors matching the app's white theme
+    private let accentPurple = Color(red: 139/255, green: 92/255, blue: 246/255) // #8B5CF6
+    private let textDark = Color(red: 35/255, green: 17/255, blue: 60/255)
+    private let textMuted = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.55)
+    private let codeBg = Color(red: 250/255, green: 249/255, blue: 247/255)
+
+    // Kid-friendly icon based on tool type
+    private var iconEmoji: String {
+        let tool = permission.toolName.lowercased()
+        if tool.contains("read") || tool.contains("file") { return "📖" }
+        if tool.contains("write") || tool.contains("edit") { return "✏️" }
+        if tool.contains("bash") || tool.contains("run") { return "🚀" }
+        if tool.contains("web") { return "🌐" }
+        return "✨"
+    }
+
+    // Kid-friendly title
+    private var friendlyTitle: String {
+        let tool = permission.toolName.lowercased()
+        if tool.contains("read") { return "Read a file?" }
+        if tool.contains("write") || tool.contains("edit") { return "Make a change?" }
+        if tool.contains("bash") { return "Run a command?" }
+        return "Can I do this?"
+    }
+
+    // Check if we have "always allow" suggestions
+    private var hasSuggestions: Bool {
+        !permission.permissionSuggestions.isEmpty
+    }
+
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 16) {
             // Icon
-            Text("🎭")
-                .font(.system(size: 48))
+            Text(iconEmoji)
+                .font(.system(size: 44))
 
             // Title
-            Text("Claude needs permission")
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundColor(.white)
+            Text(friendlyTitle)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(textDark)
 
-            // What tool
-            VStack(spacing: 8) {
-                Text(permission.toolName)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.orange)
+            // Tool name badge
+            Text(permission.toolName)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(accentPurple)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(accentPurple.opacity(0.1))
+                .cornerRadius(20)
 
-                Text(permission.toolInputPreview)
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(4)
-            }
-            .padding(.horizontal, 20)
+            // What it wants to do
+            Text(permission.toolInputPreview)
+                .font(.system(size: 13))
+                .foregroundColor(textMuted)
+                .multilineTextAlignment(.center)
+                .lineLimit(4)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(codeBg)
+                .cornerRadius(10)
 
-            // Buttons
-            HStack(spacing: 20) {
-                Button {
-                    appStore.pendingPermissionStore.resolve(id: permission.id, decision: .allow)
-                } label: {
-                    Text("Yes, do it!")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color.orange)
-                        .cornerRadius(12)
-                }
-                .buttonStyle(.plain)
-
+            // Main buttons - Allow / Deny
+            HStack(spacing: 10) {
+                // Deny button (secondary)
                 Button {
                     appStore.pendingPermissionStore.resolve(id: permission.id, decision: .deny)
                 } label: {
-                    Text("No, stop")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
+                    Text("No thanks")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(textMuted)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color.white.opacity(0.15))
-                        .cornerRadius(12)
+                        .padding(.vertical, 10)
+                        .background(Color.clear)
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(textMuted.opacity(0.3), lineWidth: 1.5)
+                        )
+                }
+                .buttonStyle(.plain)
+
+                // Allow button (primary)
+                Button {
+                    appStore.pendingPermissionStore.resolve(id: permission.id, decision: .allow)
+                } label: {
+                    Text("Sure! ✓")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(accentPurple)
+                        .cornerRadius(10)
                 }
                 .buttonStyle(.plain)
             }
+
+            // Always-allow suggestions (third button option)
+            if hasSuggestions {
+                Divider()
+                    .padding(.vertical, 4)
+
+                ForEach(permission.permissionSuggestions) { suggestion in
+                    Button {
+                        appStore.pendingPermissionStore.resolveWithPermissions(id: permission.id, suggestions: [suggestion])
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.shield.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(accentPurple.opacity(0.8))
+                            Text(suggestion.displayLabel)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(textMuted)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(accentPurple.opacity(0.06))
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
-        .padding(32)
-        .frame(maxWidth: 400)
+        .padding(24)
+        .frame(maxWidth: 360)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color(red: 0.15, green: 0.08, blue: 0.25))
-                .shadow(color: .black.opacity(0.5), radius: 30)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.12), radius: 20, x: 0, y: 6)
         )
     }
 }

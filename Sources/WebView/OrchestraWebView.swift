@@ -233,41 +233,44 @@ struct OrchestraWebView: NSViewRepresentable {
                 }
             }
 
-            // STRICT FILTERING: Only process events from sessions we've mapped
-            guard let sessionId = event.sessionId,
-                  let targetAgentIndex = sessionToAgentMap[sessionId] else {
-                // This event is from a session we don't track (e.g., another Claude Code instance)
-                print("[WebView] Ignoring event from untracked session: \(event.sessionId ?? "nil")")
-                return
-            }
+            // Determine which agent this event belongs to (if tracked)
+            let targetAgentIndex: Int? = {
+                guard let sessionId = event.sessionId else { return nil }
+                return sessionToAgentMap[sessionId]
+            }()
 
-            print("[WebView] Processing event for agent \(targetAgentIndex): \(event.eventType?.rawValue ?? "unknown")")
+            // UI STATE CHANGES: Only for tracked sessions (agents spawned via tmux)
+            if let targetAgentIndex = targetAgentIndex {
+                print("[WebView] Processing UI event for agent \(targetAgentIndex): \(event.eventType?.rawValue ?? "unknown")")
 
-            // Event → UI State Mapping:
-            // PreToolUse → sit_work animation (agent is thinking/working) in place
-            // Stop with message → talk animation (agent is speaking), then idle
-            // Stop without message → idle
-            if event.eventType == .preToolUse {
-                setAgentThinking(webView: webView, agentIndex: targetAgentIndex, thinking: true)
-            } else if event.eventType == .stop {
-                if let assistantMessage = event.lastAssistantMessage, !assistantMessage.isEmpty {
-                    // Agent has a response - play talk animation first
-                    setAgentTalking(webView: webView, agentIndex: targetAgentIndex)
-                    print("[WebView] Received assistant response for agent \(targetAgentIndex): \(assistantMessage.prefix(100))...")
-                    sendAssistantMessageToWebView(assistantMessage, agentIndex: targetAgentIndex, webView: webView)
-                    // After delay, return to idle and stop speaking
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        self.setAgentIdle(webView: webView, agentIndex: targetAgentIndex)
+                // Event → UI State Mapping:
+                // PreToolUse → sit_work animation (agent is thinking/working) in place
+                // Stop with message → talk animation (agent is speaking), then idle
+                // Stop without message → idle
+                if event.eventType == .preToolUse {
+                    setAgentThinking(webView: webView, agentIndex: targetAgentIndex, thinking: true)
+                } else if event.eventType == .stop {
+                    if let assistantMessage = event.lastAssistantMessage, !assistantMessage.isEmpty {
+                        // Agent has a response - play talk animation first
+                        setAgentTalking(webView: webView, agentIndex: targetAgentIndex)
+                        print("[WebView] Received assistant response for agent \(targetAgentIndex): \(assistantMessage.prefix(100))...")
+                        sendAssistantMessageToWebView(assistantMessage, agentIndex: targetAgentIndex, webView: webView)
+                        // After delay, return to idle and stop speaking
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            self.setAgentIdle(webView: webView, agentIndex: targetAgentIndex)
+                        }
+                    } else {
+                        // No response - just go idle
+                        setAgentIdle(webView: webView, agentIndex: targetAgentIndex)
                     }
-                } else {
-                    // No response - just go idle
-                    setAgentIdle(webView: webView, agentIndex: targetAgentIndex)
                 }
             }
 
-            // Add activity log for the correct agent
+            // ACTIVITY LOG: Show ALL events regardless of session tracking
+            // For untracked sessions, use agent 1 (first AI agent) as default
+            let logAgentIndex = targetAgentIndex ?? 1
             let actionText = formatActionText(event)
-            let logEntry = "{ agentIndex: \(targetAgentIndex), action: '\(escapeJS(actionText))' }"
+            let logEntry = "{ agentIndex: \(logAgentIndex), action: '\(escapeJS(actionText))' }"
 
             let js = """
             (function() {
@@ -432,6 +435,11 @@ struct OrchestraWebView: NSViewRepresentable {
                 return event.message ?? "notification"
             case .permissionRequest:
                 return "needs permission for \(toolName)"
+            case .taskCompleted:
+                let subject = event.taskSubject ?? "a task"
+                return "✅ completed: \(subject)"
+            case .sessionStart:
+                return "started session"
             default:
                 return event.eventType?.rawValue ?? "unknown"
             }
