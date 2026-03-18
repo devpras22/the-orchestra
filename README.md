@@ -53,4 +53,13 @@ This project builds upon the amazing work of:
 
 ## License
 
-Private
+This project follows a dual-licensing model inherited from its sources:
+
+- **Source Code (MIT):** All Swift code and logic are free to use, modify, and distribute.
+- **3D Models & Assets (CC BY-NC 4.0):** The 3D office and character models are Copyright © 2026 **Arturo Paracuellos (unboring.net)**. They are free for personal and educational use but _cannot_ be used for commercial purposes without permission.
+
+The MASKO backend code is under **MIT License — Copyright (c) 2026 Masko**.
+
+## Disclaimer
+
+This project has no cryptocurrency or token associated with it.
