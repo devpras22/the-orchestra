@@ -48,12 +48,20 @@ final class ClaudeCodeProcessManager {
             .appendingPathComponent(String(agentIndex))
     }
 
-    /// Create CLAUDE.md file with agent personality
+    /// Create CLAUDE.md file with agent personality (only if it doesn't exist)
     private func createAgentCLAUDEmd(personality: AgentPersonality) throws -> URL {
         let dir = getAgentDirectory(companyId: personality.companyId, agentIndex: personality.agentIndex)
 
         // Create directory structure
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        let fileURL = dir.appendingPathComponent("CLAUDE.md")
+
+        // Don't overwrite if file already exists - preserve customizations
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            print("[ProcessManager] CLAUDE.md already exists at: \(fileURL.path), keeping it")
+            return dir
+        }
 
         // Generate CLAUDE.md content
         let content = """
@@ -71,7 +79,6 @@ final class ClaudeCodeProcessManager {
         When working on tasks, remember your role and mission. Communicate in a way that fits your personality.
         """
 
-        let fileURL = dir.appendingPathComponent("CLAUDE.md")
         try content.write(to: fileURL, atomically: true, encoding: .utf8)
 
         print("[ProcessManager] Created CLAUDE.md at: \(fileURL.path)")
