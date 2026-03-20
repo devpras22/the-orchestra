@@ -263,6 +263,48 @@ struct OrchestraWebView: NSViewRepresentable {
                     }
                 }, true);
 
+                // Also listen for clicks on the Send button (the button with SVG icon next to textarea)
+                document.addEventListener('click', function(e) {
+                    const button = e.target.closest('button');
+                    if (button) {
+                        const textarea = document.querySelector('textarea[placeholder*="Message"]');
+                        if (textarea && textarea.value.trim()) {
+                            // Check if this button is the send button (has SVG and is near textarea)
+                            const svg = button.querySelector('svg');
+                            const parent = textarea.parentElement?.parentElement;
+                            if (svg && parent && parent.contains(button)) {
+                                // Get agent index
+                                let agentIndex = 1;
+                                if (window.orchestraUIStore) {
+                                    const state = window.orchestraUIStore.getState();
+                                    if (state.selectedNpcIndex !== null && state.selectedNpcIndex !== undefined) {
+                                        agentIndex = state.selectedNpcIndex;
+                                    }
+                                }
+
+                                // Send personality
+                                const personality = getAgentPersonality(agentIndex);
+                                if (personality && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.orchestra) {
+                                    window.webkit.messageHandlers.orchestra.postMessage({
+                                        type: 'setAgentPersonality',
+                                        ...personality
+                                    });
+                                }
+
+                                // Send message
+                                console.log('[Orchestra Bridge] Send button clicked, sending to agent', agentIndex);
+                                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.orchestra) {
+                                    window.webkit.messageHandlers.orchestra.postMessage({
+                                        type: 'chatMessage',
+                                        message: textarea.value,
+                                        agentIndex: agentIndex
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }, true);
+
                 console.log('[Orchestra Bridge] Injection complete');
             })();
             """
