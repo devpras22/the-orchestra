@@ -123,10 +123,9 @@ The personality includes: role, department, mission, and personality traits.
 
 ## Roadmap
 
-- **Edit Agents in UI** — Edit existing custom agents (updates CLAUDE.md file on disk when saved)
+- **Create Teams in UI** — Let kids create new teams/companies in the app
 - **Inter-Agent Communication** — Agents can walk to each other and talk, collaborate on tasks together
 - **Working Kanban Board** — Activate the task board UI to track agent progress
-- **Team Builder** — Let kids create new teams/companies in the app
 - **Enhanced Activity View** — Better visualization of what agents are doing in real-time
 - **Headless Mode** — Capture tmux output and display in Orchestra UI instead of hidden Terminal.app (complex: requires tmux capture-pane or stdout piping)
 - **Learning Mode** — Structured lessons on prompt engineering and agent management

@@ -157,6 +157,27 @@ struct OrchestraWebView: NSViewRepresentable {
                     processManager.setPersonality(agentPersonality)
                     print("[WebView] Set personality for agent \(agentIndex): \(role)")
                 }
+            case "updateAgentPersonality":
+                // Update an existing agent's CLAUDE.md file
+                if let agentIndex = body["agentIndex"] as? Int,
+                   let role = body["role"] as? String,
+                   let department = body["department"] as? String,
+                   let mission = body["mission"] as? String,
+                   let personality = body["personality"] as? String,
+                   let companyName = body["companyName"] as? String,
+                   let companyId = body["companyId"] as? String {
+                    let agentPersonality = AgentPersonality(
+                        agentIndex: agentIndex,
+                        role: role,
+                        department: department,
+                        mission: mission,
+                        personality: personality,
+                        companyName: companyName,
+                        companyId: companyId
+                    )
+                    let success = processManager.updateAgentCLAUDEmd(personality: agentPersonality)
+                    print("[WebView] Update agent personality for agent \(agentIndex): \(success ? "success" : "failed")")
+                }
             default:
                 break
             }

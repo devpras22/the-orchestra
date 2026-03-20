@@ -64,7 +64,41 @@ final class ClaudeCodeProcessManager {
         }
 
         // Generate CLAUDE.md content
-        let content = """
+        let content = generateCLAUDEmdContent(personality: personality)
+
+        try content.write(to: fileURL, atomically: true, encoding: .utf8)
+
+        print("[ProcessManager] Created CLAUDE.md at: \(fileURL.path)")
+        return dir
+    }
+
+    /// Update an existing CLAUDE.md file with new personality data
+    func updateAgentCLAUDEmd(personality: AgentPersonality) -> Bool {
+        let dir = getAgentDirectory(companyId: personality.companyId, agentIndex: personality.agentIndex)
+        let fileURL = dir.appendingPathComponent("CLAUDE.md")
+
+        // Check if file exists
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            print("[ProcessManager] CLAUDE.md does not exist at: \(fileURL.path), cannot update")
+            return false
+        }
+
+        // Generate new content
+        let content = generateCLAUDEmdContent(personality: personality)
+
+        do {
+            try content.write(to: fileURL, atomically: true, encoding: .utf8)
+            print("[ProcessManager] Updated CLAUDE.md at: \(fileURL.path)")
+            return true
+        } catch {
+            print("[ProcessManager] Failed to update CLAUDE.md: \(error)")
+            return false
+        }
+    }
+
+    /// Generate CLAUDE.md content for an agent personality
+    private func generateCLAUDEmdContent(personality: AgentPersonality) -> String {
+        return """
         # \(personality.role)
 
         You are **\(personality.role)** at **\(personality.companyName)**.
@@ -78,11 +112,6 @@ final class ClaudeCodeProcessManager {
 
         When working on tasks, remember your role and mission. Communicate in a way that fits your personality.
         """
-
-        try content.write(to: fileURL, atomically: true, encoding: .utf8)
-
-        print("[ProcessManager] Created CLAUDE.md at: \(fileURL.path)")
-        return dir
     }
 
     /// Get tmux session name for a specific agent
