@@ -198,8 +198,13 @@ struct OrchestraWebView: NSViewRepresentable {
                     console.log('[Orchestra Bridge] Sent ready');
                 }
 
-                // Helper function to get agent personality from store
+                // Helper function to get agent personality from store (including custom agents)
                 function getAgentPersonality(agentIndex) {
+                    // Use the bridge helper if available (handles custom agents)
+                    if (window.getAgentPersonalityForBridge) {
+                        return window.getAgentPersonalityForBridge(agentIndex);
+                    }
+                    // Fallback to legacy lookup
                     if (window.useAgencyStore) {
                         const state = window.useAgencyStore.getState();
                         const agentSetId = state.selectedAgentSetId;
