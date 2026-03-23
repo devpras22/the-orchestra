@@ -27,6 +27,8 @@ window.orchestraUIStore = useStore;
 window.useAgencyStore = useAgencyStore;
 // @ts-ignore
 window.AGENT_SETS = AGENT_SETS;
+// @ts-ignore
+window.getActiveAgentSetForBridge = getActiveAgentSet;
 
 // Helper function for Swift bridge to get agent personality including custom agents
 // @ts-ignore

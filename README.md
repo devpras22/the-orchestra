@@ -123,7 +123,8 @@ The personality includes: role, department, mission, and personality traits.
 
 ## Roadmap
 
-- **Create Teams in UI** — Let kids create new teams/companies in the app
+- ✅ **Create Teams in UI** — Let kids create new teams/companies in the app
+- ✅ **Edit/Delete Teams** — Modify or remove custom teams
 - **Inter-Agent Communication** — Agents can walk to each other and talk, collaborate on tasks together
 - **Working Kanban Board** — Activate the task board UI to track agent progress
 - **Enhanced Activity View** — Better visualization of what agents are doing in real-time

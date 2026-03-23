@@ -1,4 +1,4 @@
-export type LLMRole = 'system' | 'user' | 'assistant' | 'tool';
+export type LLMRole = 'system' | 'user' | 'assistant' | 'tool' | 'inter-agent';
 
 export interface LLMMessage {
   role: LLMRole;

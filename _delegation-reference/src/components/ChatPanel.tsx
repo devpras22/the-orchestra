@@ -105,55 +105,75 @@ const ChatPanel: React.FC = () => {
         className="flex-1 overflow-y-auto p-1 space-y-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:display-none"
       >
         <AnimatePresence initial={false}>
-          {chatMessages.map((msg, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
-            >
-              <div className={`flex items-start gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} max-w-[90%]`}>
-                {/* Avatar / Icon */}
-                <div className="shrink-0 mt-1">
-                  {msg.role === 'assistant' ? (
-                    <div className="w-5 h-5 text-zinc-400">
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L14.85 9.15L22 12L14.85 14.85L12 22L9.15 14.85L2 12L9.15 9.15L12 2Z" />
-                      </svg>
-                    </div>
-                  ) : (
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 shadow-sm">
-                      <span className="text-sm font-black text-[#7EACEA]">U</span>
-                    </div>
-                  )}
-                </div>
+          {chatMessages.map((msg, i) => {
+            const isInterAgent = msg.role === 'inter-agent';
+            const senderLabel = isInterAgent
+              ? msg.content.replace(/^(From\s+.*?):\s*.*/, '$1')
+              : null;
+            const displayContent = isInterAgent
+              ? msg.content.replace(/^From\s+.*?:\s*/, '')
+              : msg.content;
 
-                <div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm ${
-                    msg.role === 'user'
-                    ? 'bg-blue-50/50 text-zinc-800 rounded-tr-none border border-blue-100/50'
-                    : 'bg-zinc-50 text-zinc-800 rounded-tl-none border border-zinc-100'
-                  }`}>
-                    {msg.role === 'assistant' ? (
-                      <div className="markdown-content">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {msg.content}
-                        </ReactMarkdown>
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+              >
+                <div className={`flex items-start gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} max-w-[90%]`}>
+                  {/* Avatar / Icon */}
+                  <div className="shrink-0 mt-1">
+                    {isInterAgent ? (
+                      <div className="w-5 h-5 text-amber-400">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M7 17l9.2-9.2M17 17V7M7 7h10" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                    ) : msg.role === 'assistant' ? (
+                      <div className="w-5 h-5 text-zinc-400">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2L14.85 9.15L22 12L14.85 14.85L12 22L9.15 14.85L2 12L9.15 9.15L12 2Z" />
+                        </svg>
                       </div>
                     ) : (
-                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 shadow-sm">
+                        <span className="text-sm font-black text-[#7EACEA]">U</span>
+                      </div>
                     )}
                   </div>
 
-                  <div className={`flex items-center gap-2 mt-2 px-1`}>
-                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
-                      {msg.role === 'user' ? 'You' : agent.role.split(' ')[0]}
-                    </span>
+                  <div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    <div className={`px-4 py-2.5 rounded-[20px] text-[14px] leading-relaxed shadow-sm ${
+                      isInterAgent
+                        ? 'bg-amber-50/70 text-zinc-800 rounded-tl-none border border-amber-200/50'
+                        : msg.role === 'user'
+                        ? 'bg-blue-50/50 text-zinc-800 rounded-tr-none border border-blue-100/50'
+                        : 'bg-zinc-50 text-zinc-800 rounded-tl-none border border-zinc-100'
+                    }`}>
+                      {msg.role === 'assistant' ? (
+                        <div className="markdown-content">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap">{displayContent}</div>
+                      )}
+                    </div>
+
+                    <div className={`flex items-center gap-2 mt-2 px-1`}>
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${
+                        isInterAgent ? 'text-amber-500' : 'text-zinc-400'
+                      }`}>
+                        {isInterAgent ? (senderLabel ?? 'From Agent') : msg.role === 'user' ? 'You' : agent.role.split(' ')[0]}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
 
         {isThinking && (

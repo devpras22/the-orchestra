@@ -131,9 +131,14 @@ struct OrchestraWebView: NSViewRepresentable {
             case "agentEvent":
                 print("[WebView] Agent event: \(body)")
             case "switchCompany":
-                // User switched companies - close all tmux sessions
+                // User switched companies - close all tmux sessions and regenerate CLAUDE.md files
                 print("[WebView] Company switch - closing all tmux sessions")
+                let companyId = body["companyId"] as? String
                 processManager.stopAll()
+                // Regenerate CLAUDE.md files for the new team
+                if let companyId = companyId {
+                    processManager.regenerateTeamCLAUDEmds(companyId: companyId)
+                }
                 // Reset session tracking
                 resetAllSessions()
             case "setAgentPersonality":
@@ -156,6 +161,9 @@ struct OrchestraWebView: NSViewRepresentable {
                     )
                     processManager.setPersonality(agentPersonality)
                     print("[WebView] Set personality for agent \(agentIndex): \(role)")
+
+                    // Also fetch all agents in this team for CLAUDE.md generation and inter-agent routing
+                    fetchAllAgentsForTeam(webView: self.webView, companyId: companyId)
                 }
             case "updateAgentPersonality":
                 // Update an existing agent's CLAUDE.md file
@@ -401,6 +409,52 @@ struct OrchestraWebView: NSViewRepresentable {
                         setAgentTalking(webView: webView, agentIndex: targetAgentIndex)
                         print("[WebView] Received assistant response for agent \(targetAgentIndex): \(assistantMessage.prefix(100))...")
                         sendAssistantMessageToWebView(assistantMessage, agentIndex: targetAgentIndex, webView: webView)
+
+                        // Check for inter-agent messages and route them
+                        let interAgentMessages = self.parseInterAgentMessages(text: assistantMessage, fromAgentIndex: targetAgentIndex)
+                        for (targetIdx, msg) in interAgentMessages {
+                            // Record spawn time so SessionStart event maps to this agent
+                            self.agentSpawnTimes[targetIdx] = Date()
+                            // Get sender name for the injected message
+                            let senderPersonality = self.processManager.getAgentPersonalities()[targetAgentIndex]
+                            let senderName = senderPersonality?.role ?? "Agent \(targetAgentIndex)"
+
+                            // Send to target agent via tmux
+                            self.processManager.send(message: msg, agentIndex: targetIdx)
+
+                            // Inject inter-agent message into target agent's chat history
+                            let escapedMsg = self.escapeJS("From \(senderName): \(msg)")
+                            let interAgentJS = """
+                            (function() {
+                              if (window.orchestraStore) {
+                                const store = window.orchestraStore.getState();
+                                store.appendAgentHistory(\(targetIdx), 'inter-agent', ["\(escapedMsg)"]);
+                                console.log('[Orchestra] Inter-agent message from \(targetAgentIndex) to \(targetIdx)');
+                              }
+                            })();
+                            """
+                            DispatchQueue.main.async {
+                                webView.evaluateJavaScript(interAgentJS) { _, error in
+                                    if let error = error {
+                                        print("[WebView] Failed to inject inter-agent message: \(error.localizedDescription)")
+                                    }
+                                }
+                            }
+
+                            // Log the inter-agent communication
+                            let logEntry = "{ agentIndex: \(targetAgentIndex), action: 'sent message to \(senderName)' }"
+                            let logJS = """
+                            (function() {
+                              if (window.orchestraStore) {
+                                const store = window.orchestraStore.getState();
+                                if (store.addLogEntry) store.addLogEntry(\(logEntry));
+                              }
+                            })();
+                            """
+                            DispatchQueue.main.async {
+                                webView.evaluateJavaScript(logJS) { _, _ in }
+                            }
+                        }
                         // After delay, return to idle and stop speaking
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                             self.setAgentIdle(webView: webView, agentIndex: targetAgentIndex)
@@ -597,6 +651,89 @@ struct OrchestraWebView: NSViewRepresentable {
                 .replacingOccurrences(of: "'", with: "\\'")
                 .replacingOccurrences(of: "\"", with: "\\\"")
                 .replacingOccurrences(of: "\n", with: "\\n")
+        }
+
+        /// Fetch all agents in a team from the React store and store in ProcessManager
+        private func fetchAllAgentsForTeam(webView: WKWebView?, companyId: String) {
+            guard let webView = webView else { return }
+
+            let js = """
+            (function() {
+              if (window.getActiveAgentSetForBridge) {
+                const agentSet = window.getActiveAgentSetForBridge();
+                return agentSet.agents.map(a => ({
+                  agentIndex: a.index,
+                  role: a.role,
+                  department: a.department,
+                  mission: a.mission,
+                  personality: a.personality,
+                  companyName: agentSet.companyName,
+                  companyId: agentSet.id
+                }));
+              }
+              return [];
+            })();
+            """
+
+            DispatchQueue.main.async {
+                webView.evaluateJavaScript(js) { result, _ in
+                    if let agents = result as? [[String: Any]] {
+                        for agentDict in agents {
+                            if let index = agentDict["agentIndex"] as? Int,
+                               let role = agentDict["role"] as? String,
+                               let department = agentDict["department"] as? String,
+                               let mission = agentDict["mission"] as? String,
+                               let personality = agentDict["personality"] as? String,
+                               let companyName = agentDict["companyName"] as? String,
+                               let cId = agentDict["companyId"] as? String {
+                                let p = AgentPersonality(
+                                    agentIndex: index, role: role, department: department,
+                                    mission: mission, personality: personality,
+                                    companyName: companyName, companyId: cId
+                                )
+                                self.processManager.setPersonality(p)
+                            }
+                        }
+                        print("[WebView] Loaded \(agents.count) agent personalities for team \(companyId)")
+                    }
+                }
+            }
+        }
+
+        /// Parse inter-agent messages from an assistant response
+        /// Returns array of (targetAgentIndex, message) tuples
+        private func parseInterAgentMessages(
+            text: String,
+            fromAgentIndex: Int
+        ) -> [(targetAgentIndex: Int, message: String)] {
+            // Pattern: @AgentName: message (captures name and message)
+            // Message continues until blank line or next @ tag
+            let pattern = #"@([\w\s]+?):\s*([\s\S]*?)(?=\n\s*\n|\n@|\Z)"#
+
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+                return []
+            }
+
+            let fullRange = NSRange(text.startIndex..., in: text)
+            let matches = regex.matches(in: text, range: fullRange)
+
+            var results: [(targetAgentIndex: Int, message: String)] = []
+
+            for match in matches {
+                guard let nameRange = Range(match.range(at: 1), in: text),
+                      let messageRange = Range(match.range(at: 2), in: text) else { continue }
+
+                let agentName = String(text[nameRange]).trimmingCharacters(in: .whitespaces)
+                let message = String(text[messageRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+                // Find matching agent by name (case-insensitive)
+                if let targetIndex = processManager.findAgentIndex(byName: agentName, excludingIndex: fromAgentIndex) {
+                    results.append((targetAgentIndex: targetIndex, message: message))
+                    print("[WebView] Parsed inter-agent message: from \(fromAgentIndex) to \(targetIndex): \(message.prefix(50))")
+                }
+            }
+
+            return results
         }
 
         private func sendToClaudeCode(message: String, agentIndex: Int) {

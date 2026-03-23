@@ -98,7 +98,7 @@ interface AgencyState {
   addDebugLogEntry: (entry: Omit<DebugLogEntry, 'id' | 'timestamp'>) => void;
 
   // ── Actions — History ───────────────────────────────────────
-  appendAgentHistory: (agentIndex: number, role: 'user' | 'assistant', parts: any[]) => void;
+  appendAgentHistory: (agentIndex: number, role: 'user' | 'assistant' | 'inter-agent', parts: any[]) => void;
   setAgentSummary: (agentIndex: number, summary: string) => void;
   appendBoardroomHistory: (taskId: string, role: 'user' | 'assistant', parts: any[]) => void;
   clearAllHistories: () => void;

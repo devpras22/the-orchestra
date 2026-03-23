@@ -48,6 +48,9 @@ final class ClaudeCodeProcessManager {
             .appendingPathComponent(String(agentIndex))
     }
 
+    /// Delimiter used to split app-managed content from custom instructions
+    private static let customSectionDelimiter = "\n---\n## Custom Instructions\n"
+
     /// Create CLAUDE.md file with agent personality (only if it doesn't exist)
     private func createAgentCLAUDEmd(personality: AgentPersonality) throws -> URL {
         let dir = getAgentDirectory(companyId: personality.companyId, agentIndex: personality.agentIndex)
@@ -73,6 +76,7 @@ final class ClaudeCodeProcessManager {
     }
 
     /// Update an existing CLAUDE.md file with new personality data
+    /// Preserves custom instructions below the delimiter
     func updateAgentCLAUDEmd(personality: AgentPersonality) -> Bool {
         let dir = getAgentDirectory(companyId: personality.companyId, agentIndex: personality.agentIndex)
         let fileURL = dir.appendingPathComponent("CLAUDE.md")
@@ -83,8 +87,15 @@ final class ClaudeCodeProcessManager {
             return false
         }
 
-        // Generate new content
-        let content = generateCLAUDEmdContent(personality: personality)
+        // Preserve custom section below delimiter
+        let customSection = readCustomSection(from: fileURL)
+
+        // Generate new managed content
+        var content = generateCLAUDEmdContent(personality: personality)
+
+        // Append preserved custom section (or add empty delimiter section)
+        content += Self.customSectionDelimiter
+        content += customSection
 
         do {
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
@@ -96,8 +107,36 @@ final class ClaudeCodeProcessManager {
         }
     }
 
+    /// Read the custom section (everything below the delimiter) from an existing CLAUDE.md
+    private func readCustomSection(from fileURL: URL) -> String {
+        guard let existing = try? String(contentsOf: fileURL, encoding: .utf8) else {
+            return ""
+        }
+
+        if let range = existing.range(of: Self.customSectionDelimiter) {
+            let custom = String(existing[range.upperBound...])
+            print("[ProcessManager] Preserved custom section (\(custom.count) chars)")
+            return custom
+        }
+
+        // No delimiter found - this is a legacy file, no custom section to preserve
+        return ""
+    }
+
     /// Generate CLAUDE.md content for an agent personality
+    /// Includes team directory with all other agents for inter-agent communication
     private func generateCLAUDEmdContent(personality: AgentPersonality) -> String {
+        // Build team directory section
+        var teamSection = ""
+        let teammates = agentPersonalities.values.filter { $0.agentIndex != personality.agentIndex && $0.companyId == personality.companyId }
+
+        if !teammates.isEmpty {
+            teamSection = "\n## Team Communication\n\nYou can send messages to other team members. Write `@AgentName: your message` on its own line.\n\nYour teammates:\n"
+            for teammate in teammates.sorted(by: { $0.agentIndex < $1.agentIndex }) {
+                teamSection += "- **\(teammate.role)** (Agent \(teammate.agentIndex)) - \(teammate.mission)\n"
+            }
+        }
+
         return """
         # \(personality.role)
 
@@ -106,12 +145,42 @@ final class ClaudeCodeProcessManager {
         - **Department:** \(personality.department)
         - **Mission:** \(personality.mission)
         - **Personality:** \(personality.personality)
-
+        \(teamSection)
         You are part of a team of AI assistants helping a young user learn to direct AI agents.
         Stay in character and be helpful, friendly, and encouraging.
 
         When working on tasks, remember your role and mission. Communicate in a way that fits your personality.
         """
+    }
+
+    /// Find an agent index by name (case-insensitive partial match on role)
+    func findAgentIndex(byName name: String, excludingIndex: Int? = nil) -> Int? {
+        let nameLower = name.lowercased().trimmingCharacters(in: .whitespaces)
+        for (index, personality) in agentPersonalities {
+            if let excluding = excludingIndex, index == excluding { continue }
+            let roleLower = personality.role.lowercased()
+            if roleLower.contains(nameLower) || nameLower.contains(roleLower) {
+                return index
+            }
+        }
+        return nil
+    }
+
+    /// Get all known agent personalities (read-only)
+    func getAgentPersonalities() -> [Int: AgentPersonality] {
+        return agentPersonalities
+    }
+
+    /// Regenerate CLAUDE.md files for all agents in a team
+    /// Preserves custom sections below the delimiter
+    func regenerateTeamCLAUDEmds(companyId: String) {
+        let teamAgents = agentPersonalities.values.filter { $0.companyId == companyId }
+        for agent in teamAgents {
+            let _ = updateAgentCLAUDEmd(personality: agent)
+        }
+        if !teamAgents.isEmpty {
+            print("[ProcessManager] Regenerated CLAUDE.md for \(teamAgents.count) agents in team \(companyId)")
+        }
     }
 
     /// Get tmux session name for a specific agent
