@@ -34,6 +34,13 @@ This system allows kids to:
 - **Multiple Agents**: Run several agents in parallel, each with their own session
 - **Live Event Tracking**: Watch tool use, task completion, and agent thinking in real-time
 
+### Inter-Agent Communication
+- **@Mentions**: Agents can send messages to teammates using `@AgentName: your message`
+- **Smart Routing**: When an agent's response contains an @mention, the app parses it and routes the message to the target agent's tmux session
+- **Chat History**: Inter-agent messages appear in both agents' chat panels with a distinct style
+- **Popup Notifications**: When an agent receives a message from a teammate, a popup appears with "Ignore" and "Open Chat" buttons
+- **Team Awareness**: Each agent's CLAUDE.md includes a team directory so they know who their teammates are
+
 ### Safe & Controlled
 - **Permission System**: Approve or deny agent actions before they happen
 - **Session Isolation**: Each agent runs in its own tmux session
@@ -125,7 +132,8 @@ The personality includes: role, department, mission, and personality traits.
 
 - ✅ **Create Teams in UI** — Let kids create new teams/companies in the app
 - ✅ **Edit/Delete Teams** — Modify or remove custom teams
-- **Inter-Agent Communication** — Agents can walk to each other and talk, collaborate on tasks together
+- ✅ **Inter-Agent Communication** — Agents can message each other and collaborate on tasks
+- **Working Kanban Board** — Activate the task board UI to track agent progress
 - **Working Kanban Board** — Activate the task board UI to track agent progress
 - **Enhanced Activity View** — Better visualization of what agents are doing in real-time
 - **Headless Mode** — Capture tmux output and display in Orchestra UI instead of hidden Terminal.app (complex: requires tmux capture-pane or stdout piping)
