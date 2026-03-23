@@ -123,9 +123,12 @@ struct OrchestraWebView: NSViewRepresentable {
                 if let message = body["message"] as? String,
                    let agentIndex = body["agentIndex"] as? Int {
                     print("[WebView] Chat message for agent \(agentIndex): \(message)")
+                    // Auto-dismiss popup if user is now chatting with the target agent
+                    appStore?.interAgentMessageStore.dismissAllForAgent(agentIndex: agentIndex)
                     sendToClaudeCode(message: message, agentIndex: agentIndex)
                 } else if let message = body["message"] as? String {
                     print("[WebView] Chat message (no agent index, defaulting to 1): \(message)")
+                    appStore?.interAgentMessageStore.dismissAllForAgent(agentIndex: 1)
                     sendToClaudeCode(message: message, agentIndex: 1)
                 }
             case "agentEvent":
@@ -162,8 +165,25 @@ struct OrchestraWebView: NSViewRepresentable {
                     processManager.setPersonality(agentPersonality)
                     print("[WebView] Set personality for agent \(agentIndex): \(role)")
 
-                    // Also fetch all agents in this team for CLAUDE.md generation and inter-agent routing
-                    fetchAllAgentsForTeam(webView: self.webView, companyId: companyId)
+                    // Load all team agents synchronously from the payload (no async JS eval)
+                    if let teamAgents = body["teamAgents"] as? [[String: Any]] {
+                        for agentDict in teamAgents {
+                            if let idx = agentDict["agentIndex"] as? Int,
+                               let r = agentDict["role"] as? String,
+                               let d = agentDict["department"] as? String,
+                               let m = agentDict["mission"] as? String,
+                               let p = agentDict["personality"] as? String,
+                               let cn = agentDict["companyName"] as? String,
+                               let cId = agentDict["companyId"] as? String {
+                                processManager.setPersonality(AgentPersonality(
+                                    agentIndex: idx, role: r, department: d,
+                                    mission: m, personality: p,
+                                    companyName: cn, companyId: cId
+                                ))
+                            }
+                        }
+                        print("[WebView] Loaded \(teamAgents.count) agent personalities synchronously")
+                    }
                 }
             case "updateAgentPersonality":
                 // Update an existing agent's CLAUDE.md file
@@ -257,11 +277,22 @@ struct OrchestraWebView: NSViewRepresentable {
                             // Get agent personality and send to native
                             const personality = getAgentPersonality(agentIndex);
                             if (personality && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.orchestra) {
+                                // Also fetch all team agents synchronously
+                                let teamAgents = [];
+                                if (window.getActiveAgentSetForBridge) {
+                                    const agentSet = window.getActiveAgentSetForBridge();
+                                    teamAgents = agentSet.agents.map(a => ({
+                                        agentIndex: a.index, role: a.role, department: a.department,
+                                        mission: a.mission, personality: a.personality,
+                                        companyName: agentSet.companyName, companyId: agentSet.id
+                                    }));
+                                }
                                 window.webkit.messageHandlers.orchestra.postMessage({
                                     type: 'setAgentPersonality',
-                                    ...personality
+                                    ...personality,
+                                    teamAgents: teamAgents
                                 });
-                                console.log('[Orchestra Bridge] Sent personality for agent', agentIndex);
+                                console.log('[Orchestra Bridge] Sent personality for agent', agentIndex, 'with', teamAgents.length, 'team agents');
                             }
 
                             console.log('[Orchestra Bridge] Sending message to agent', agentIndex, ':', textarea.value);
@@ -298,9 +329,19 @@ struct OrchestraWebView: NSViewRepresentable {
                                 // Send personality
                                 const personality = getAgentPersonality(agentIndex);
                                 if (personality && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.orchestra) {
+                                    let teamAgents = [];
+                                    if (window.getActiveAgentSetForBridge) {
+                                        const agentSet = window.getActiveAgentSetForBridge();
+                                        teamAgents = agentSet.agents.map(a => ({
+                                            agentIndex: a.index, role: a.role, department: a.department,
+                                            mission: a.mission, personality: a.personality,
+                                            companyName: agentSet.companyName, companyId: agentSet.id
+                                        }));
+                                    }
                                     window.webkit.messageHandlers.orchestra.postMessage({
                                         type: 'setAgentPersonality',
-                                        ...personality
+                                        ...personality,
+                                        teamAgents: teamAgents
                                     });
                                 }
 
@@ -363,6 +404,16 @@ struct OrchestraWebView: NSViewRepresentable {
             // Wire up event callback to forward to WebView
             appStore.onEventForWebView = { [weak self] event in
                 self?.handleAgentEvent(event)
+            }
+
+            // Listen for JS evaluation requests from SwiftUI views
+            NotificationCenter.default.addObserver(forName: .evaluateJavaScript, object: nil, queue: .main) { [weak self] notification in
+                guard let self = self, let js = notification.object as? String, let webView = self.webView else { return }
+                webView.evaluateJavaScript(js) { _, error in
+                    if let error = error {
+                        print("[WebView] Failed to evaluate JS from notification: \(error.localizedDescription)")
+                    }
+                }
             }
 
             let sessions = appStore.sessionStore.activeSessions
@@ -440,6 +491,9 @@ struct OrchestraWebView: NSViewRepresentable {
                                     }
                                 }
                             }
+
+                            // Show popup notification (skip if user is already chatting with target agent)
+                            self.checkAndShowPopup(webView: webView, fromAgentIndex: targetAgentIndex, fromAgentName: senderName, toAgentIndex: targetIdx, message: msg)
 
                             // Log the inter-agent communication
                             let logEntry = "{ agentIndex: \(targetAgentIndex), action: 'sent message to \(senderName)' }"
@@ -757,6 +811,49 @@ struct OrchestraWebView: NSViewRepresentable {
             sessionToAgentMap = sessionToAgentMap.filter { $0.value != agentIndex }
             agentSpawnTimes.removeValue(forKey: agentIndex)
             print("[WebView] Session tracking reset for agent \(agentIndex)")
+        }
+
+        /// Check if user is already chatting with the target agent; if not, show popup
+        private func checkAndShowPopup(webView: WKWebView, fromAgentIndex: Int, fromAgentName: String,
+                                       toAgentIndex: Int, message: String) {
+            let js = """
+            (function() {
+              if (window.orchestraUIStore) {
+                const state = window.orchestraUIStore.getState();
+                return { isChatting: state.isChatting, selectedNpcIndex: state.selectedNpcIndex };
+              }
+              return { isChatting: false, selectedNpcIndex: null };
+            })();
+            """
+
+            DispatchQueue.main.async {
+                webView.evaluateJavaScript(js) { [weak self] result, _ in
+                    guard let self = self,
+                          let dict = result as? [String: Any],
+                          let isChatting = dict["isChatting"] as? Bool,
+                          let selectedIndex = dict["selectedNpcIndex"] as? Int else {
+                        // Can't determine state — show popup to be safe
+                        self?.appStore?.interAgentMessageStore.add(
+                            fromAgentIndex: fromAgentIndex, fromAgentName: fromAgentName,
+                            toAgentIndex: toAgentIndex, toAgentName: "Agent \(toAgentIndex)",
+                            message: message
+                        )
+                        return
+                    }
+
+                    // Skip popup if user is already chatting with the target agent
+                    if isChatting && selectedIndex == toAgentIndex { return }
+
+                    // Get target agent name
+                    let targetName = self.processManager.getAgentPersonalities()[toAgentIndex]?.role ?? "Agent \(toAgentIndex)"
+
+                    self.appStore?.interAgentMessageStore.add(
+                        fromAgentIndex: fromAgentIndex, fromAgentName: fromAgentName,
+                        toAgentIndex: toAgentIndex, toAgentName: targetName,
+                        message: message
+                    )
+                }
+            }
         }
 
         /// Reset all session tracking

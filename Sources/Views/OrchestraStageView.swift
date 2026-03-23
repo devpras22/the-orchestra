@@ -35,6 +35,11 @@ struct OrchestraStageView: View {
             if let permission = appStore.pendingPermissionStore.pending.first {
                 PermissionPopupView(permission: permission)
             }
+
+            // Inter-agent message popup (only when needed)
+            if let message = appStore.interAgentMessageStore.pending.first {
+                InterAgentMessagePopupView(message: message)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -177,6 +182,111 @@ struct PermissionPopupView: View {
                 .shadow(color: Color.black.opacity(0.12), radius: 20, x: 0, y: 6)
         )
     }
+}
+
+// MARK: - Inter-Agent Message Popup
+
+struct InterAgentMessagePopupView: View {
+    let message: InterAgentMessage
+    @Environment(AppStore.self) var appStore
+
+    private let accentAmber = Color(red: 245/255, green: 158/255, blue: 11/255) // #F59E0B
+    private let textDark = Color(red: 35/255, green: 17/255, blue: 60/255)
+    private let textMuted = Color(red: 35/255, green: 17/255, blue: 60/255).opacity(0.55)
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // Icon
+            Text("💬")
+                .font(.system(size: 44))
+
+            // Title
+            Text("Message from \(message.fromAgentName)")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(textDark)
+
+            // To badge
+            Text("to \(message.toAgentName)")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(accentAmber)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(accentAmber.opacity(0.1))
+                .cornerRadius(20)
+
+            // Message preview
+            Text(message.message)
+                .font(.system(size: 13))
+                .foregroundColor(textMuted)
+                .multilineTextAlignment(.center)
+                .lineLimit(4)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(Color(red: 250/255, green: 249/255, blue: 247/255))
+                .cornerRadius(10)
+
+            // Buttons
+            HStack(spacing: 10) {
+                // Ignore button (secondary)
+                Button {
+                    appStore.interAgentMessageStore.dismiss(id: message.id)
+                } label: {
+                    Text("Ignore")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(textMuted)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.clear)
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(textMuted.opacity(0.3), lineWidth: 1.5)
+                        )
+                }
+                .buttonStyle(.plain)
+
+                // Open Chat button (primary)
+                Button {
+                    openAgentChat(agentIndex: message.toAgentIndex)
+                    appStore.interAgentMessageStore.dismiss(id: message.id)
+                } label: {
+                    Text("Open Chat ✓")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(accentAmber)
+                        .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: 360)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.12), radius: 20, x: 0, y: 6)
+        )
+    }
+
+    private func openAgentChat(agentIndex: Int) {
+        let js = """
+        (function() {
+          if (window.startChatWithAgent) {
+            window.startChatWithAgent(\(agentIndex));
+          }
+        })();
+        """
+        // Evaluate via the WebView — post to notification center since we don't have direct webView access
+        NotificationCenter.default.post(name: .evaluateJavaScript, object: js)
+    }
+}
+
+// Notification name for JS evaluation from views
+extension Notification.Name {
+    static let evaluateJavaScript = Notification.Name("evaluateJavaScript")
 }
 
 // MARK: - Settings View

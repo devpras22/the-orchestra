@@ -14,6 +14,7 @@ final class AppStore: @unchecked Sendable {
     // let hotkeyManager = GlobalHotkeyManager()  // Disabled - requires accessibility permission
     let sessionSwitcherStore = SessionSwitcherStore()
     let sessionFinishedStore = SessionFinishedStore()
+    let interAgentMessageStore = InterAgentMessageStore()
 
     private(set) var eventProcessor: EventProcessor!
     private(set) var isReady = false

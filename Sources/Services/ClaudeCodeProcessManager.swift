@@ -60,14 +60,16 @@ final class ClaudeCodeProcessManager {
 
         let fileURL = dir.appendingPathComponent("CLAUDE.md")
 
-        // Don't overwrite if file already exists - preserve customizations
-        if FileManager.default.fileExists(atPath: fileURL.path) {
-            print("[ProcessManager] CLAUDE.md already exists at: \(fileURL.path), keeping it")
-            return dir
-        }
+        // Always regenerate to include latest team directory
+        // Preserve custom section below delimiter if file exists
+        let customSection = FileManager.default.fileExists(atPath: fileURL.path)
+            ? readCustomSection(from: fileURL)
+            : ""
 
-        // Generate CLAUDE.md content
-        let content = generateCLAUDEmdContent(personality: personality)
+        // Generate CLAUDE.md content with current team data
+        var content = generateCLAUDEmdContent(personality: personality)
+        content += Self.customSectionDelimiter
+        content += customSection
 
         try content.write(to: fileURL, atomically: true, encoding: .utf8)
 

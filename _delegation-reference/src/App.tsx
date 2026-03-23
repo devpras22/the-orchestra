@@ -30,6 +30,18 @@ window.AGENT_SETS = AGENT_SETS;
 // @ts-ignore
 window.getActiveAgentSetForBridge = getActiveAgentSet;
 
+// Helper to start chat with a specific agent (used by Swift bridge for popup "Open Chat")
+// @ts-ignore
+window.startChatWithAgent = (npcIndex: number) => {
+  if (window.orchestraUIStore) {
+    const store = window.orchestraUIStore.getState();
+    store.setSelectedNpc(npcIndex);
+    store.setThinking(false);
+    // Set isChatting via direct state update
+    window.orchestraUIStore.setState({ isChatting: true, chatMessages: [] });
+  }
+};
+
 // Helper function for Swift bridge to get agent personality including custom agents
 // @ts-ignore
 window.getAgentPersonalityForBridge = (agentIndex: number) => {
