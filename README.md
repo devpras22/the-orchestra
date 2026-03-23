@@ -1,6 +1,10 @@
-# The Orchestra
+# 🎭 The Orchestra
 
 A kid-friendly AI assistant app with animated agents.
+
+<p align="center">
+  <img src="docs/theOrchestraRoom.png" width="600" alt="The Orchestra - 3D AI Agent Workspace">
+</p>
 
 ---
 
@@ -15,40 +19,55 @@ Unlike traditional chat interfaces, The Orchestra makes AI agents feel **alive**
 ### Core Idea
 
 This system allows kids to:
-- **Watch agents work** in real-time through animated 3D characters
-- **Understand cause and effect** — see how their instructions translate to agent actions
-- **Learn to prompt better** — better instructions lead to better outcomes
-- **Manage multiple agents** — coordinate a team of AI assistants
+- 🎬 **Watch agents work** in real-time through animated 3D characters
+- 🧠 **Understand cause and effect** — see how their instructions translate to agent actions
+- 💡 **Learn to prompt better** — better instructions lead to better outcomes
+- 👥 **Manage multiple agents** — coordinate a team of AI assistants
 
 ---
 
-## Features
+## 📸 Screenshots
 
-### Kid-Friendly Interface
+<table>
+  <tr>
+    <td><img src="docs/teamSelector.png" width="400" alt="Team Selector"></td>
+    <td><img src="docs/OpenChat.png" width="400" alt="Chat Panel"></td>
+  </tr>
+  <tr>
+    <td align="center">Create & switch teams</td>
+    <td align="center">Chat with agents</td>
+  </tr>
+</table>
+
+---
+
+## ✨ Features
+
+### 🧒 Kid-Friendly Interface
 - **3D Animated Agents**: Characters walk, sit, work, and talk with expressive animations
 - **Permission Popups**: Kid-friendly design with emojis and simple "Sure! ✓" / "No thanks" buttons
 - **Activity Log**: See every action agents take (bash commands, file edits, web searches)
 
-### Real AI, Real Work
+### 🤖 Real AI, Real Work
 - **Powered by Claude Code**: Real AI agents doing actual work, not simulations
 - **Multiple Agents**: Run several agents in parallel, each with their own session
 - **Live Event Tracking**: Watch tool use, task completion, and agent thinking in real-time
 
-### Inter-Agent Communication
+### 💬 Inter-Agent Communication
 - **@Mentions**: Agents can send messages to teammates using `@AgentName: your message`
 - **Smart Routing**: When an agent's response contains an @mention, the app parses it and routes the message to the target agent's tmux session
 - **Chat History**: Inter-agent messages appear in both agents' chat panels with a distinct style
 - **Popup Notifications**: When an agent receives a message from a teammate, a popup appears with "Ignore" and "Open Chat" buttons
 - **Team Awareness**: Each agent's CLAUDE.md includes a team directory so they know who their teammates are
 
-### Safe & Controlled
+### 🔒 Safe & Controlled
 - **Permission System**: Approve or deny agent actions before they happen
 - **Session Isolation**: Each agent runs in its own tmux session
 - **Parental Oversight**: Full visibility into everything agents do
 
 ---
 
-## Tech Stack
+## 🛠 Tech Stack
 
 - **Engine**: Three.js with WebGPU for 3D rendering
 - **UI**: React with Zustand for state management
@@ -59,7 +78,7 @@ This system allows kids to:
 
 ---
 
-## Requirements
+## 📋 Requirements
 
 - macOS 14.0+ (Sonoma)
 - Xcode 15+ (for Swift 5.10)
@@ -67,7 +86,7 @@ This system allows kids to:
 
 ---
 
-## Build & Run
+## 🚀 Build & Run
 
 ```bash
 # Clone the repo
@@ -79,7 +98,7 @@ swift run the-orchestra
 
 ---
 
-## Build Pipeline
+## 🔧 Build Pipeline
 
 After React changes:
 ```bash
@@ -92,7 +111,7 @@ swift build
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 theOrchestra/
@@ -105,7 +124,7 @@ theOrchestra/
 
 ---
 
-## Agent Personalities
+## 🎭 Agent Personalities
 
 Each agent has a personality that gets injected into Claude Code. When you send a message to an agent, The Orchestra automatically creates a `CLAUDE.md` file that tells Claude who it is.
 
@@ -128,21 +147,20 @@ The personality includes: role, department, mission, and personality traits.
 
 ---
 
-## Roadmap
+## 🗺 Roadmap
 
 - ✅ **Create Teams in UI** — Let kids create new teams/companies in the app
 - ✅ **Edit/Delete Teams** — Modify or remove custom teams
 - ✅ **Inter-Agent Communication** — Agents can message each other and collaborate on tasks
-- **Working Kanban Board** — Activate the task board UI to track agent progress
-- **Working Kanban Board** — Activate the task board UI to track agent progress
-- **Enhanced Activity View** — Better visualization of what agents are doing in real-time
-- **Headless Mode** — Capture tmux output and display in Orchestra UI instead of hidden Terminal.app (complex: requires tmux capture-pane or stdout piping)
-- **Learning Mode** — Structured lessons on prompt engineering and agent management
-- **Multi-Language Support** — Agents that can teach and work in different languages
+- 🚧 **Working Kanban Board** — Activate the task board UI to track agent progress
+- 🔮 **Enhanced Activity View** — Better visualization of what agents are doing in real-time
+- 🔮 **Headless Mode** — Capture tmux output and display in Orchestra UI instead of hidden Terminal.app
+- 🔮 **Learning Mode** — Structured lessons on prompt engineering and agent management
+- 🔮 **Multi-Language Support** — Agents that can teach and work in different languages
 
 ---
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
 This project builds upon the amazing work of:
 - **[The Delegation](https://github.com/arturitu/the-delegation)** — The 3D multi-agent React interface with animated avatars
@@ -150,7 +168,7 @@ This project builds upon the amazing work of:
 
 ---
 
-## License
+## 📄 License
 
 This project follows a dual-licensing model inherited from its sources:
 
@@ -161,6 +179,6 @@ The MASKO backend code is under **MIT License — Copyright (c) 2026 Masko**.
 
 ---
 
-## Disclaimer
+## ⚠️ Disclaimer
 
 This project has no cryptocurrency or token associated with it.
