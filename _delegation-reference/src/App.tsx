@@ -33,12 +33,9 @@ window.getActiveAgentSetForBridge = getActiveAgentSet;
 // Helper to start chat with a specific agent (used by Swift bridge for popup "Open Chat")
 // @ts-ignore
 window.startChatWithAgent = (npcIndex: number) => {
-  if (window.orchestraUIStore) {
-    const store = window.orchestraUIStore.getState();
-    store.setSelectedNpc(npcIndex);
-    store.setThinking(false);
-    // Set isChatting via direct state update
-    window.orchestraUIStore.setState({ isChatting: true, chatMessages: [] });
+  // Route through SceneManager for full 3D experience (camera, walk, face)
+  if ((window as any).orchestraSceneManager) {
+    (window as any).orchestraSceneManager.startChat(npcIndex);
   }
 };
 
@@ -109,6 +106,8 @@ const App: React.FC = () => {
     if (canvasRef.current && !managerRef.current) {
       const manager = new SceneManager(canvasRef.current);
       managerRef.current = manager;
+      // @ts-ignore
+      window.orchestraSceneManager = manager;
       setSceneManager(manager);
     }
 
@@ -116,6 +115,8 @@ const App: React.FC = () => {
       if (managerRef.current) {
         managerRef.current.dispose();
         managerRef.current = null;
+        // @ts-ignore
+        window.orchestraSceneManager = null;
         setSceneManager(null);
       }
     };

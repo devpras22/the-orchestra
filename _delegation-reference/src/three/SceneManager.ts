@@ -165,6 +165,20 @@ export class SceneManager {
       }
     });
     this.unsubs.push(unsub);
+
+    // React to agent/team color changes within the same team
+    const unsubAgency = useAgencyStore.subscribe((state, prev) => {
+      const setId = state.selectedAgentSetId;
+      if (setId !== this.lastAgentSetId) return; // handled by useStore sub above
+      const agentsChanged = state.customAgents[setId] !== prev.customAgents[setId];
+      const teamChanged = state.customTeams[setId] !== prev.customTeams[setId];
+      if ((agentsChanged || teamChanged) && this.controller) {
+        const activeSet = getActiveAgentSet();
+        this.worldManager.updateThemeColor(activeSet.color);
+        this.controller.setColors(activeSet.agents.map(a => a.color));
+      }
+    });
+    this.unsubs.push(unsubAgency);
   }
 
   // ── Public chat API ──────────────────────────────────────────
